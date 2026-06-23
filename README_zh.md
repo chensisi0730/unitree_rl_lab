@@ -32,7 +32,7 @@
   - 使用已安装 Isaac Lab 的 Python 解释器，以可编辑模式安装库：
 
     ```bash
-    conda activate env_isaaclab
+    conda activate env_isaaclab_sim5
     ./unitree_rl_lab.sh -i
     # 重启shell以激活环境变更
     ```
@@ -70,7 +70,7 @@
   - 运行一个任务：
 
     ```bash
-    ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_10-43-03 --checkpoint model_6000  --num_envs 10000
+    ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_23-16-30 --checkpoint model_6000  --num_envs 10000
     ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
     python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 10000
