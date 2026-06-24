@@ -76,6 +76,9 @@
     python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 10000
     python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
 
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --task \
+    Unitree-Go2-Velocity --num_envs 10000 \
+    --resume --load_run 2026-06-23_16-34-57
     
     ```
   - 使用训练好的智能体进行推理：
@@ -84,7 +87,11 @@
     ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
     ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
+    python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57
+
+
     python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
+    
     ```
 
 ## 部署
@@ -100,7 +107,8 @@ sudo apt install -y libyaml-cpp-dev libboost-all-dev libeigen3-dev libspdlog-dev
 # 安装 unitree_sdk2
 git clone git@github.com:unitreerobotics/unitree_sdk2.git
 cd unitree_sdk2
-mkdir build && cd build
+mkdir build && cd build    ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
+
 cmake .. -DBUILD_EXAMPLES=OFF # 安装到 /usr/local 目录
 sudo make install
 # 编译 robot_controller

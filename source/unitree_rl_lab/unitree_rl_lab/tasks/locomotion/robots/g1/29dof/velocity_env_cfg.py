@@ -401,6 +401,8 @@ class RobotPlayEnvCfg(RobotEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 32
+        # 保持与训练一致的地形配置（禁用curriculum，使用最终难度）
+        self.scene.terrain.terrain_generator.curriculum = False
         self.scene.terrain.terrain_generator.num_rows = 2
         self.scene.terrain.terrain_generator.num_cols = 10
         self.commands.base_velocity.ranges = self.commands.base_velocity.limit_ranges
