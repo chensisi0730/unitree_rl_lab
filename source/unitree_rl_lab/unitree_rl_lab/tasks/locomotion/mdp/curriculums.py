@@ -4,6 +4,8 @@ import torch
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from isaaclab.managers import SceneEntityCfg
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
@@ -35,6 +37,37 @@ def lin_vel_cmd_levels(
             ).tolist()
 
     return torch.tensor(ranges.lin_vel_x[1], device=env.device)
+
+
+def terrain_levels_vel_stairs(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    move_down_coeff: float = 0.15,
+) -> torch.Tensor:
+    """改良版地形课程：降低 move_down 灵敏度，适合楼梯训练。
+
+    原版 terrain_levels_vel 的 move_down 阈值为 ``v × 20s × 0.5 = 10m``（满速时），
+    楼梯上机器人频繁重置，几乎不可能累积 10m 净位移，导致地形等级螺旋下降。
+
+    本版将系数改为 move_down_coeff（默认 0.15），满速时阈值从 10m 降到 3m，
+    给楼梯训练足够的容错空间。
+    """
+    from isaaclab.assets import Articulation
+    from isaaclab.terrains import TerrainImporter
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    terrain: TerrainImporter = env.scene.terrain
+    command = env.command_manager.get_command("base_velocity")
+
+    distance = torch.norm(asset.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
+
+    move_up = distance > terrain.cfg.terrain_generator.size[0] / 2
+    move_down = distance < torch.norm(command[env_ids, :2], dim=1) * env.max_episode_length_s * move_down_coeff
+    move_down *= ~move_up
+
+    terrain.update_env_origins(env_ids, move_up, move_down)
+    return torch.mean(terrain.terrain_levels.float())
 
 
 def ang_vel_cmd_levels(

@@ -73,13 +73,17 @@
     ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_23-16-30 --checkpoint model_6000  --num_envs 10000
     ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
-    python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 10000
+    python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 1000
     python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
 
-    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --task \
-    Unitree-Go2-Velocity --num_envs 10000 \
-    --resume --load_run 2026-06-23_16-34-57
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task \
+    Unitree-Go2-Velocity --num_envs 5000 \
+    --resume --load_run 2026-06-24_18-07-00
     
+
+查看 terrain_level 涨没涨的命令
+./scripts/check_terrain_level.sh
+
     ```
   - 使用训练好的智能体进行推理：
 
@@ -89,6 +93,8 @@
     # 等效于
     python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57
 
+
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity --load_run 2026-06-24_18-07-00
 
     python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
     

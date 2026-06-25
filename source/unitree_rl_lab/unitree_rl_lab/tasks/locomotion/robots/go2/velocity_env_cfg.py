@@ -20,6 +20,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from unitree_rl_lab.assets.robots.unitree import UNITREE_GO2_CFG as ROBOT_CFG
 from unitree_rl_lab.tasks.locomotion import mdp
+from unitree_rl_lab.tasks.locomotion.mdp.curriculums import terrain_levels_vel_stairs
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
@@ -29,34 +30,25 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
-    difficulty_range=(0.0, 1.0),
+    difficulty_range=(0.0, 0.3),
     use_cache=False,
     sub_terrains={
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.1),
+        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.15),
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.1, noise_range=(0.01, 0.06), noise_step=0.01, border_width=0.25
-        ),
-        "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
-            proportion=0.1, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
-        ),
-        "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
-            proportion=0.1, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
-        ),
-        "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-            proportion=0.2, grid_width=0.45, grid_height_range=(0.05, 0.2), platform_width=2.0
+            proportion=0.1, noise_range=(0.01, 0.04), noise_step=0.01, border_width=0.25
         ),
         "pyramid_stairs": terrain_gen.MeshPyramidStairsTerrainCfg(
-            proportion=0.2,
-            step_height_range=(0.05, 0.23),
-            step_width=0.3,
+            proportion=0.5,
+            step_height_range=(0.03, 0.15),
+            step_width=0.4,
             platform_width=3.0,
             border_width=1.0,
             holes=False,
         ),
         "pyramid_stairs_inv": terrain_gen.MeshInvertedPyramidStairsTerrainCfg(
-            proportion=0.2,
-            step_height_range=(0.05, 0.23),
-            step_width=0.3,
+            proportion=0.25,
+            step_height_range=(0.03, 0.15),
+            step_width=0.4,
             platform_width=3.0,
             border_width=1.0,
             holes=False,
@@ -93,11 +85,14 @@ class RobotSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     # sensors
+    # 高度扫描仪：模拟 Go2 前置深度相机对地形的感知
+    # 覆盖面前 2.0m × 宽 1.5m 区域，10cm 分辨率 → 20×15 = 300 个采样点
+    # 视角约 87° 水平（≈ 2*arctan(0.75/2) ≈ 80°），接近 RealSense D435 的实际 FOV
     height_scanner = RayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base",
         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
         ray_alignment="yaw",
-        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[2.0, 1.5]),
         debug_vis=False,
         mesh_prim_paths=["/World/ground"],
     )
@@ -253,13 +248,6 @@ class ObservationsCfg:
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, clip=(-100, 100))
         joint_effort = ObsTerm(func=mdp.joint_effort, scale=0.01, clip=(-100, 100))
         last_action = ObsTerm(func=mdp.last_action, clip=(-100, 100))
-        # height_scanner = ObsTerm(func=mdp.height_scan,
-        #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        #     clip=(-1.0, 5.0),
-        # )
-
-        # def __post_init__(self):
-        #     self.history_length = 5
 
     # privileged observations
     critic: CriticCfg = CriticCfg()
@@ -359,7 +347,8 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    # 暂时禁用地形课程，待策略学会基本步态后再启用
+    # terrain_levels = CurrTerm(func=terrain_levels_vel_stairs, params={"move_down_coeff": 0.15})
     lin_vel_cmd_levels = CurrTerm(mdp.lin_vel_cmd_levels)
 
 
