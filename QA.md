@@ -53,3 +53,95 @@
  · 高度扫描（ray casting）计算量极小，只返回地面高度值
 
 当前  height_scan  提供 300 维的地形感知输入，覆盖面前 2m × 宽 1.5m 的区域，10cm 分辨率。这足够让策略「看到」前方楼梯并做出反应。
+
+
+## terrain_level 的范围
+
+根据项目配置，terrain_level 的范围由地形生成器的 `num_rows` 决定：
+
+### GO2 配置（velocity_env_cfg.py 第 28 行）
+```python
+COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
+    num_rows=10,      # 10 行地形 = 0 ~ 9 共 10 个等级
+    num_cols=20,
+    ...
+)
+```
+
+### terrain_level 范围：**0 到 num_rows - 1**
+
+对于 GO2：
+- **范围：0 ~ 9**（共 10 个等级）
+- `max_init_terrain_level=1`：初始随机分配到 0 或 1 级地形
+- 训练时 `max_init_terrain_level = num_rows - 1 = 9`（使用全部难度范围）
+- 推理/评估时 `max_init_terrain_level = 8`：从 0~8 级开始
+
+### G1 / H1 配置
+```python
+num_rows=9,    # 9 行地形 = 0 ~ 8 共 9 个等级
+num_cols=21,
+```
+- **范围：0 ~ 8**（共 9 个等级）
+
+### 地形等级与台阶高度的对应关系
+
+子地形配置中楼梯的 `step_height_range=(0.03, 0.15)`：
+- 等级 0：台阶高度约 0.03m（3cm）
+- 等级 9（GO2 最高）：台阶高度约 0.15m（15cm）
+- 等级线性插值：`height = 0.03 + (level / max_level) * (0.15 - 0.03)`
+
+### 课程控制逻辑（curriculums.py）
+
+```python
+terrain.update_env_origins(env_ids, move_up, move_down)
+```
+- `move_up=True`：terrain_level + 1（提升难度）
+- `move_down=True`：terrain_level - 1（降低难度，已禁用）
+- 当前版本 `terrain_levels_vel_stairs_only_up` 只升不降，等级单调递增到最大值
+
+## 为什么 terrain_level 输出的是浮点数
+
+原因在第 123 行：
+
+```python
+return torch.mean(terrain.terrain_levels.float())
+```
+
+### 详细解释
+
+1. **`terrain.terrain_levels`** 本身是**整数张量**，每个环境有一个整数等级（如 0, 1, 2, ...）
+2. **`.float()`** 将其转换为浮点类型
+3. **`torch.mean(...)`** 计算**所有环境的平均值**
+
+### 举例说明
+
+假设有 32 个并行环境（env_batch_size=32），当前各环境的 terrain_level 分布如下：
+
+| 环境数量 | terrain_level |
+|----------|---------------|
+| 4 | 0 |
+| 8 | 3 |
+| 12 | 6 |
+| 8 | 9 |
+
+```
+terrain_levels = [0,0,0,0, 3,3,3,3,3,3,3,3, 6,6,...,6, 9,9,...,9]
+torch.mean(...) = (4×0 + 8×3 + 12×6 + 8×9) / 32 = 205/32 = 6.41
+```
+
+所以输出 **6.42** 是合理的——它表示当前所有环境的**平均地形等级**。
+
+### 如果要看整数等级
+
+有两个选择：
+
+1. **看单个环境的等级**：用 `terrain.terrain_levels[env_id]` 查看特定环境
+2. **看等级分布**：用 `torch.bincount(terrain.terrain_levels)` 统计各等级的环境数量
+3. **输出时取整**：`return torch.mean(terrain.terrain_levels.float())` 改为 `return torch.round(torch.mean(terrain.terrain_levels.float()))`
+
+### 当前输出方式的意义
+
+输出平均值是**课程学习的标准做法**，因为：
+- 不同环境可以有不同的地形等级（异步进度）
+- 平均值反映整体训练进度
+- 小数部分表示环境间存在等级差异（如你的日志显示 1.51 → 6.42，说明训练早期环境等级分散，后期逐渐集中到较高等级）

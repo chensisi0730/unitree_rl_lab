@@ -20,7 +20,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from unitree_rl_lab.assets.robots.unitree import UNITREE_GO2_CFG as ROBOT_CFG
 from unitree_rl_lab.tasks.locomotion import mdp
-from unitree_rl_lab.tasks.locomotion.mdp.curriculums import terrain_levels_vel_stairs
+from unitree_rl_lab.tasks.locomotion.mdp.curriculums import terrain_levels_vel_stairs_only_up
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
@@ -30,7 +30,7 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
-    difficulty_range=(0.0, 0.3),
+    difficulty_range=(0.0, 1.0),
     use_cache=False,
     sub_terrains={
         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.15),
@@ -187,7 +187,7 @@ class CommandsCfg:
         asset_name="robot",
         resampling_time_range=(20.0, 20.0),
         rel_standing_envs=0.1,
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.1, 0.1), lin_vel_y=(-0.1, 0.1), ang_vel_z=(-1, 1)
         ),
@@ -348,8 +348,10 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     # 暂时禁用地形课程，待策略学会基本步态后再启用
-    # terrain_levels = CurrTerm(func=terrain_levels_vel_stairs, params={"move_down_coeff": 0.15})
+    terrain_levels = CurrTerm(func=terrain_levels_vel_stairs_only_up, params={"move_up_min_dist": 2.0})
     lin_vel_cmd_levels = CurrTerm(mdp.lin_vel_cmd_levels)
+    # 暂时禁用地形课程，待策略学会基本步态后再启用 
+    # 再次打开地形课程
 
 
 @configclass

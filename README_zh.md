@@ -13,8 +13,9 @@
 
 <div align="center">
 
-| <div align="center"> Isaac Lab 仿真 </div> | <div align="center"> Mujoco 仿真 </div> |  <div align="center"> 实物 </div> |
-|--- | --- | --- |
+
+| <div align="center"> Isaac Lab 仿真 </div>                                                                                     | <div align="center"> Mujoco 仿真 </div>                                                                                           | <div align="center"> 实物 </div>                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | [<img src="https://oss-global-cdn.unitree.com/static/d879adac250648c587d3681e90658b49_480x397.gif" width="240px">](g1_sim.gif) | [<img src="https://oss-global-cdn.unitree.com/static/3c88e045ab124c3ab9c761a99cb5e71f_480x397.gif" width="240px">](g1_mujoco.gif) | [<img src="https://oss-global-cdn.unitree.com/static/6c17c6cf52ec4e26bbfab1fbf591adb2_480x270.gif" width="240px">](g1_real.gif) |
 
 </div>
@@ -39,7 +40,9 @@
 - 下载 Unitree 机器人描述文件
 
   *方法1：使用 USD 文件*
+
   - 从 [unitree_model](https://huggingface.co/datasets/unitreerobotics/unitree_model/tree/main) 下载 unitree usd 文件，保持文件夹结构
+
     ```bash
     git clone https://huggingface.co/datasets/unitreerobotics/unitree_model
     ```
@@ -50,16 +53,16 @@
     ```
 
   *方法2：使用 URDF 文件 [推荐]* 仅适用于 Isaacsim >= 5.0
+
   - 从 [unitree_ros](https://github.com/unitreerobotics/unitree_ros) 下载 unitree 机器人 urdf 文件
-      ```
-      git clone https://github.com/unitreerobotics/unitree_ros.git
-      ```
+    ```
+    git clone https://github.com/unitreerobotics/unitree_ros.git
+    ```
   - 在 `source/unitree_rl_lab/unitree_rl_lab/assets/robots/unitree.py` 中配置 `UNITREE_ROS_DIR`。
     ```bash
     UNITREE_ROS_DIR = "</home/user/projects/unitree_ros/unitree_ros>"
     ```
   - [可选]：如果想使用 urdf 文件，修改 *robot_cfg.spawn* 配置
-
 - 验证环境是否正确安装：
 
   - 列出可用任务：
@@ -67,7 +70,7 @@
     ```bash
     ./unitree_rl_lab.sh -l # 这是比 isaaclab 更快的版本
     ```
-  - 运行一个任务：
+  - 运行训练一个任务：
 
     ```bash
     ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_23-16-30 --checkpoint model_6000  --num_envs 10000
@@ -77,12 +80,12 @@
     python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task \
-    Unitree-Go2-Velocity --num_envs 5000 \
-    --resume --load_run 2026-06-24_18-07-00
-    
+    Unitree-Go2-Velocity --num_envs 10000 \
+    --resume --load_run 2026-06-25_18-34-45
 
-查看 terrain_level 涨没涨的命令
-./scripts/check_terrain_level.sh
+    查看 terrain_level 涨没涨的命令
+    查看这轮训练的 terrain_level 涨势
+    ./scripts/check_terrain_level.sh
 
     ```
   - 使用训练好的智能体进行推理：
@@ -94,10 +97,28 @@
     python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57
 
 
-conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity --load_run 2026-06-24_18-07-00
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28
+
+    评估最新 checkpoint 在最高难度上的表现 
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28 --eval --eval-steps 64000
 
     python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
-    
+
+
+    # 查看最新的 terrain_level 值 ，然后在输出信息中可以点击网页查看曲线
+    tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/
+    # 或在命令行：
+    tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/ --tag Curriculum/terrain_levels
+
+
+查看评估结果                                          
+  "mean_reward": 33.3,                                                 
+  "std_reward": 4.67,                                                                
+  "mean_ep_length": 999.7,
+  "max_ep_length": 1000       
+
+    cat logs/rsl_rl/unitree_go2_velocity/2026-06-25_10-08-28/eval_result.json
+
     ```
 
 ## 部署
