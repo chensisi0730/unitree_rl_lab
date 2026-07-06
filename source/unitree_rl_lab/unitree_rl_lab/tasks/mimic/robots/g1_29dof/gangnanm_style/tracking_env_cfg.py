@@ -71,7 +71,7 @@ class RobotSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.13, 0.13, 0.13), intensity=1000.0),
     )
     contact_forces = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True, force_threshold=10.0, debug_vis=True
+        prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True, force_threshold=10.0, debug_vis=False
     )
 
 
@@ -91,7 +91,7 @@ class CommandsCfg:
         motion_file=f"{os.path.dirname(__file__)}/G1_gangnam_style_V01.bvh_60hz.npz",
         anchor_body_name="torso_link",
         resampling_time_range=(1.0e9, 1.0e9),
-        debug_vis=True,
+        debug_vis=False,
         pose_range={
             "x": (-0.05, 0.05),
             "y": (-0.05, 0.05),

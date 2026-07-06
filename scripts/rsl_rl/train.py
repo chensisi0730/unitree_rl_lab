@@ -154,6 +154,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         log_dir += f"_{agent_cfg.run_name}"
     log_dir = os.path.join(log_root_path, log_dir)
 
+    # 设置环境变量，让课程学习模块能获取日志目录（用于 terrain_level 持久化）
+    os.environ["RSL_RL_LOG_DIR"] = log_dir
+
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 

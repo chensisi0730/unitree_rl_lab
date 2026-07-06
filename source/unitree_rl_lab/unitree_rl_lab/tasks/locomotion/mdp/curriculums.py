@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import torch
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -8,6 +9,57 @@ from isaaclab.managers import SceneEntityCfg
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
+
+# 全局变量，记录是否已加载 terrain_levels
+_terrain_loaded = False
+
+
+def _get_log_dir() -> str | None:
+    """从环境变量获取日志目录。"""
+    return os.environ.get("RSL_RL_LOG_DIR")
+
+
+def save_terrain_levels(terrain, log_dir: str | None):
+    """保存 terrain_levels 到日志目录。"""
+    if not log_dir:
+        return
+    os.makedirs(log_dir, exist_ok=True)
+    save_path = os.path.join(log_dir, "terrain_levels.pt")
+    try:
+        torch.save({
+            "terrain_levels": terrain.terrain_levels.cpu(),
+            "terrain_types": getattr(terrain, "terrain_types", None),
+        }, save_path)
+    except Exception:
+        pass
+
+
+def load_terrain_levels(terrain, env) -> bool:
+    """从日志目录加载 terrain_levels。"""
+    log_dir = _get_log_dir()
+    if not log_dir:
+        return False
+
+    save_path = os.path.join(log_dir, "terrain_levels.pt")
+    if not os.path.exists(save_path):
+        return False
+
+    try:
+        checkpoint = torch.load(save_path, weights_only=False, map_location=env.device)
+        saved_levels = checkpoint["terrain_levels"]
+        if saved_levels.shape == terrain.terrain_levels.shape:
+            terrain.terrain_levels[:] = saved_levels.to(env.device)
+            if terrain.terrain_origins is not None:
+                terrain.env_origins[:] = terrain.terrain_origins[
+                    terrain.terrain_levels, terrain.terrain_types
+                ]
+            print(f"[INFO] Loaded terrain_levels from {save_path}")
+            print(f"       Mean level: {terrain.terrain_levels.float().mean():.2f}, "
+                  f"Max level: {terrain.terrain_levels.max().item()}")
+            return True
+    except Exception as e:
+        print(f"[WARN] Failed to load terrain_levels: {e}")
+    return False
 
 
 def lin_vel_cmd_levels(
@@ -45,21 +97,19 @@ def terrain_levels_vel_stairs_only_up(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     move_up_min_dist: float = 2.0,
 ) -> torch.Tensor:
+    """地形课程：难度只升不降，适合楼梯训练。
+
+    原版问题：
+      - move_down 导致 terrain_level 震荡（升上去又跌回来，卡在 0）
+      - move_up 固定 4m 阈值，但初始速度 0.1m/s → 20s 只走 2m → 永远升不了级
+
+    本版：
+      - move_up = max(move_up_min_dist, v_cmd × 20s × 0.3)，自适应阈值
+      - move_down = 0（永不降级）
+      - terrain_level 单调上升，逐步推进到 15cm 台阶
+      - 支持持久化：每次课程更新后自动保存，恢复训练时自动加载
     """
-    改良版地形课程：降低 move_down 灵敏度，适合楼梯训练。
-
-    原版 terrain_levels_vel 的 move_down 阈值为 ``v × 20s × 0.5 = 10m``（满速时），
-    楼梯上机器人频繁重置，几乎不可能累积 10m 净位移，导致地形等级螺旋下降。
-
-    本版将系数改为 move_down_coeff（默认 0.15），满速时阈值从 10m 降到 3m，
-    给楼梯训练足够的容错空间。
-
-    地形课程：难度只升不降，适合楼梯训练。
-
-    原版问题：move_down 会导致 terrain_level 震荡（上去了跌回来，卡在 0）。
-    本版只保留 move_up：走够距离就升级，摔倒了也不降级。
-    随着训练推进，terrain_level 只会单调上升，逐步推进到 15cm 台阶。
-    """
+    global _terrain_loaded
     from isaaclab.assets import Articulation
     from isaaclab.terrains import TerrainImporter
 
@@ -67,59 +117,34 @@ def terrain_levels_vel_stairs_only_up(
     terrain: TerrainImporter = env.scene.terrain
     command = env.command_manager.get_command("base_velocity")
 
+    # 首次调用时尝试加载上次的 terrain_levels
+    if not _terrain_loaded:
+        load_terrain_levels(terrain, env)
+        _terrain_loaded = True
+
+    # 机器人当前 episode 的净位移（从出生点到当前位置）
     distance = torch.norm(asset.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
 
-    '''
-这段代码的逻辑是动态判断机器人是否"足够成功"地完成了任务，从而决定提升地形难度。
-
-逐行分析
-1. 计算指令速度
-
-cmd_speed = torch.norm(command[env_ids, :2], dim=1)
-从速度指令中取前两维（x 和 y 方向的速度）
-计算欧几里得范数，得到标量速度大小
-结果：每个环境的指令速度 cmd_speed
-2. 计算升级阈值
-
-move_up_threshold = torch.maximum(
-    torch.full_like(cmd_speed, move_up_min_dist),  # 固定值 2.0m
-    cmd_speed * env.max_episode_length_s * 0.3,    # 动态值 v × 20 × 0.3
-)
-取两者中的较大值作为阈值：
-
-条件	阈值	说明
-低速/静止	move_up_min_dist (2.0m)	即使指令速度很小，也要走够 2 米才算成功
-高速运动	v × max_episode_length_s × 0.3	速度越高，要求走的距离越远
-举例（假设 max_episode_length_s = 20s）：
-
-指令速度	动态阈值	最终阈值（取较大）
-0.5 m/s	0.5 × 20 × 0.3 = 3.0m	3.0m
-0.1 m/s	0.1 × 20 × 0.3 = 0.6m	2.0m (固定值更大)
-1.0 m/s	1.0 × 20 × 0.3 = 6.0m	6.0m
-3. 判断是否升级
-
-move_up = distance > move_up_threshold
-distance：机器人实际从起点出发的净位移（xy 平面）
-如果实际位移 > 阈值，说明机器人"走得够远"，触发地形难度升级
-设计意图
-相比原版（系数 0.5，满速时阈值 10m），这里改为 0.3 是为了：
-
-降低阈值到 6m（满速时），给楼梯训练更多容错空间
-原版 10m 阈值在楼梯上几乎不可能达到，导致地形等级一直降级，卡在最低难度
-0.3 系数让机器人在楼梯上也有机会累积进度，逐步提升难度
-    '''
-    # move_up: 至少走 min_dist 米，或走完 v_cmd × 20s × 0.3
+    # 指令速度大小
     cmd_speed = torch.norm(command[env_ids, :2], dim=1)
+
+    # move_up 阈值
     move_up_threshold = torch.maximum(
         torch.full_like(cmd_speed, move_up_min_dist),
         cmd_speed * env.max_episode_length_s * 0.3,
     )
     move_up = distance > move_up_threshold
 
-    # 永不降级！
+    # 永不降级
     move_down = torch.zeros_like(move_up)
 
     terrain.update_env_origins(env_ids, move_up, move_down)
+
+    # 每隔一定步数保存 terrain_levels
+    if getattr(env, "common_step_counter", 0) % 1000 == 0:
+        log_dir = _get_log_dir()
+        save_terrain_levels(terrain, log_dir)
+
     return torch.mean(terrain.terrain_levels.float())
 
 

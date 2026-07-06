@@ -2,6 +2,7 @@
 # 检查最新的 training run 中 terrain_level 是否在上涨
 # 用法: ./scripts/check_terrain_level.sh
 # 可选: ./scripts/check_terrain_level.sh logs/rsl_rl/unitree_go2_velocity/2026-06-24_16-01-51
+# ./scripts/check_terrain_level.sh logs/rsl_rl/unitree_g1_29dof_velocity/2026-07-06_10-39-30
 
 LOG_DIR="${1:-$(ls -dt logs/rsl_rl/unitree_go2_velocity/2*/ | head -1)}"
 EVENT_FILE=$(ls "$LOG_DIR"/events.out.* 2>/dev/null | head -1)
@@ -19,7 +20,7 @@ ea.Reload()
 
 tags = ea.Tags().get('scalars', [])
 if 'Curriculum/terrain_levels' not in tags:
-    print('⏳ 训练尚未写入 terrain_level 数据')
+    print('⏳ 训练尚未写入                 terrain_level 数据')
     exit(0)
 
 ev = ea.Scalars('Curriculum/terrain_levels')

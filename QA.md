@@ -145,3 +145,77 @@ torch.mean(...) = (4×0 + 8×3 + 12×6 + 8×9) / 32 = 205/32 = 6.41
 - 不同环境可以有不同的地形等级（异步进度）
 - 平均值反映整体训练进度
 - 小数部分表示环境间存在等级差异（如你的日志显示 1.51 → 6.42，说明训练早期环境等级分散，后期逐渐集中到较高等级）
+
+
+# 训练开启后，查看TESORBOAD的方法                                                                                                                                                      
+                                                                                                                             
+ TensorBoard 查看方法                                                               
+                                                                                                                                                                                        
+ 命令（在新终端中运行）                                                                                                                                                                 
+                                                                                                                                                                                        
+ bash                                                                                                                                                                                   
+ # 指定日志目录启动 TensorBoard                                                                                                                                                         
+ tensorboard --logdir /home/css/work/robot/unitree/rl_org/unitree_rl_lab/logs/rsl_rl/                                                                                                   
+ tensorboard --logdir /home/css/work/robot/unitree/unitree_rl_lab/logs/rsl_rl/
+
+ 
+启动后终端会显示：                                                                                                                                                                      
+                                                                                                                                                                                        
+ TensorBoard 2.xx.x at http://localhost:6006/ (Press CTRL+C to quit)                                                                                                                    
+
+ 访问方式 
+
+ 场景       地址
+ ────────── ──────────────────────
+ 本机       http://localhost:6006
+ 远程服务器 http://<服务器IP>:6006
+
+如果远程服务器有防火墙，可用 SSH 端口转发：
+
+ bash
+ # 本地终端执行 
+ ssh -L 6006:localhost:6006 <用户名>@<服务器IP> 
+ # 然后在本地浏览器打开 http://localhost:6006 
+
+ TensorBoard 中关注的指标 
+
+ 左侧筛选                            查看内容
+ ─────────────────────────────────── ───────────────────
+ Curriculum/terrain_levels           🎯 课程难度推进曲线
+ Metrics/Reward                      总奖励收敛
+ Episode_Termination/time_out        成功率（越高越好）
+ Episode_Termination/bad_orientation 摔倒率（越低越好）
+ Episode_Reward/track_lin_vel_xy     线速度跟踪质量
+ Metrics/base_velocity/error_vel_xy  速度跟踪误差
+
+ ▎ 注意: 训练期间 TensorBoard 数据是实时写入的，启动后刷新页面即可看到最新数据。
+
+# terrain_levels 最终值 
+
+ 指标               最终值     对应 Step (iter)
+ ────────────────── ────────── ────────────────
+ terrain_levels     0.89       10893
+ lin_vel_cmd_levels 1.0 (满速) 10893
+
+ 含义 
+
+ terrain_levels  是所有 4096 个环境的平均难度等级（范围 0~9）。值 0.89 表示：
+
+ · 大部分环境仍处于课程早期难度等级（0 级或 1 级）
+ · 对应阶梯高度约 5~7cm
+ · 距离 15cm (难度等级 ~4.5) 还需要更多训练
+
+ 地形难度映射 
+
+ 难度等级 阶梯高度 训练进度
+ ──────── ──────── ─────────────────────────────────
+ 0        5cm      ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ 当前 (~0.89)
+ 1        7cm      ⬜⬜⬛⬛⬛⬛⬛⬛⬛⬛
+ 2        9cm      ⬜⬜⬜⬛⬛⬛⬛⬛⬛⬛
+ 3        12cm     ⬜⬜⬜⬜⬛⬛⬛⬛⬛⬛
+ 4        15cm 🎯  ⬜⬜⬜⬜⬜⬛⬛⬛⬛⬛
+ 5        17cm     ⬜⬜⬜⬜⬜⬜⬛⬛⬛⬛
+ 6        20cm     ⬜⬜⬜⬜⬜⬜⬜⬛⬛⬛
+ 7        22cm     ⬜⬜⬜⬜⬜⬜⬜⬜⬛⬛
+ 8        24cm     ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬛
+ 9        25cm     ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜

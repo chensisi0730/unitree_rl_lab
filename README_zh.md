@@ -3,7 +3,7 @@
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-5.1.0-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
 [![Isaac Lab](https://img.shields.io/badge/IsaacLab-2.3.0-silver)](https://isaac-sim.github.io/IsaacLab)
 [![License](https://img.shields.io/badge/license-Apache2.0-yellow.svg)](https://opensource.org/license/apache-2-0)
-[![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat&logo=Discord&logoColor=white)](https://discord.gg/ZwcVwxv5rq)
+[![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat\&logo=Discord\&logoColor=white)](https://discord.gg/ZwcVwxv5rq)
 
 ## 概述
 
@@ -13,8 +13,7 @@
 
 <div align="center">
 
-
-| <div align="center"> Isaac Lab 仿真 </div>                                                                                     | <div align="center"> Mujoco 仿真 </div>                                                                                           | <div align="center"> 实物 </div>                                                                                                |
+| <div align="center"> Isaac Lab 仿真 </div>                                                                                       | <div align="center"> Mujoco 仿真 </div>                                                                                             | <div align="center"> 实物 </div>                                                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | [<img src="https://oss-global-cdn.unitree.com/static/d879adac250648c587d3681e90658b49_480x397.gif" width="240px">](g1_sim.gif) | [<img src="https://oss-global-cdn.unitree.com/static/3c88e045ab124c3ab9c761a99cb5e71f_480x397.gif" width="240px">](g1_mujoco.gif) | [<img src="https://oss-global-cdn.unitree.com/static/6c17c6cf52ec4e26bbfab1fbf591adb2_480x270.gif" width="240px">](g1_real.gif) |
 
@@ -24,14 +23,11 @@
 
 - 按照 [安装指南](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) 安装 Isaac Lab。
 - 安装 Unitree RL IsaacLab 独立环境。
-
   - 将此仓库克隆或复制到 Isaac Lab 安装目录之外：
-
     ```bash
     git clone https://github.com/unitreerobotics/unitree_rl_lab.git
     ```
   - 使用已安装 Isaac Lab 的 Python 解释器，以可编辑模式安装库：
-
     ```bash
     conda activate env_isaaclab_sim5
     ./unitree_rl_lab.sh -i
@@ -40,21 +36,16 @@
 - 下载 Unitree 机器人描述文件
 
   *方法1：使用 USD 文件*
-
-  - 从 [unitree_model](https://huggingface.co/datasets/unitreerobotics/unitree_model/tree/main) 下载 unitree usd 文件，保持文件夹结构
-
+  - 从 [unitree\_model](https://huggingface.co/datasets/unitreerobotics/unitree_model/tree/main) 下载 unitree usd 文件，保持文件夹结构
     ```bash
     git clone https://huggingface.co/datasets/unitreerobotics/unitree_model
     ```
   - 在 `source/unitree_rl_lab/unitree_rl_lab/assets/robots/unitree.py` 中配置 `UNITREE_MODEL_DIR`。
-
     ```bash
     UNITREE_MODEL_DIR = "</home/user/projects/unitree_usd>"
     ```
-
-  *方法2：使用 URDF 文件 [推荐]* 仅适用于 Isaacsim >= 5.0
-
-  - 从 [unitree_ros](https://github.com/unitreerobotics/unitree_ros) 下载 unitree 机器人 urdf 文件
+  *方法2：使用 URDF 文件 \[推荐]* 仅适用于 Isaacsim >= 5.0
+  - 从 [unitree\_ros](https://github.com/unitreerobotics/unitree_ros) 下载 unitree 机器人 urdf 文件
     ```
     git clone https://github.com/unitreerobotics/unitree_ros.git
     ```
@@ -62,64 +53,88 @@
     ```bash
     UNITREE_ROS_DIR = "</home/user/projects/unitree_ros/unitree_ros>"
     ```
-  - [可选]：如果想使用 urdf 文件，修改 *robot_cfg.spawn* 配置
+  - \[可选]：如果想使用 urdf 文件，修改 *robot\_cfg.spawn* 配置
 - 验证环境是否正确安装：
-
   - 列出可用任务：
-
     ```bash
     ./unitree_rl_lab.sh -l # 这是比 isaaclab 更快的版本
     ```
   - 运行训练一个任务：
-
     ```bash
+    基础用法（录制视频）
+    python scripts/rsl_rl/train.py --task Unitree-Go2-Flat --video
+
+
     ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_23-16-30 --checkpoint model_6000  --num_envs 10000
     ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
     python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 1000
-    python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
+
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity --num_envs 18000 --resume --load_run 2026-07-03_19-13-44
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task \
-    Unitree-Go2-Velocity --num_envs 10000 \
-    --resume --load_run 2026-06-25_18-34-45
+    Unitree-Go2-Velocity --num_envs 10000  --video \
+    --resume --load_run 2026-07-02_23-40-22
 
     查看 terrain_level 涨没涨的命令
     查看这轮训练的 terrain_level 涨势
     ./scripts/check_terrain_level.sh
 
     ```
-  - 使用训练好的智能体进行推理：
-
+# 使用训练好的智能体进行推理：
     ```bash
     ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
     ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
-    python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57
+    python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57 
 
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28
 
-    评估最新 checkpoint 在最高难度上的表现 
-    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28 --eval --eval-steps 64000
-
     python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
 
-
-    # 查看最新的 terrain_level 值 ，然后在输出信息中可以点击网页查看曲线
-    tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/
-    # 或在命令行：
-    tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/ --tag Curriculum/terrain_levels
-
-
-查看评估结果                                          
-  "mean_reward": 33.3,                                                 
-  "std_reward": 4.67,                                                                
-  "mean_ep_length": 999.7,
-  "max_ep_length": 1000       
-
-    cat logs/rsl_rl/unitree_go2_velocity/2026-06-25_10-08-28/eval_result.json
-
     ```
+
+### 评估训练效果
+
+使用独立的 `eval.py` 脚本量化评估 checkpoint 性能，运行固定步数后输出指标并退出：
+
+```bash
+# 评估指定 checkpoint
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/eval.py \
+    --task Unitree-Go2-Velocity \
+    --load_run 2026-06-30_23-52-26 \
+    --checkpoint model_6000 \
+    --eval-steps 64000
+
+# 评估最新 checkpoint（省略 --checkpoint）
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/eval.py \
+    --task Unitree-Go2-Velocity-Stairs \
+    --load_run 2026-06-30_23-52-26 \
+    --eval-steps 64000
+
+# 查看评估结果
+cat logs/rsl_rl/unitree_go2_velocity/2026-06-30_23-52-26/eval_result.json
+```
+
+**输出指标说明**：
+
+| 指标 | 含义 | 理想值 |
+|---|---|---|
+| `success_rate_pct` | 成功率（正常结束，非摔倒） | 越高越好 |
+| `mean_reward` | 平均奖励 | 越高越好 |
+| `std_reward` | 奖励标准差 | 越低越稳定 |
+| `mean_ep_length` | 平均回合步数 | 接近 max_ep_length |
+| `fall_rate_pct` | 摔倒率 | 越低越好 |
+| `fps` | 推理速度 | 参考值 |
+
+## tensorboard 查看最新的 terrain\_level 值 ，然后在输出信息中可以点击网页查看曲线
+
+```
+tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/
+# 或在命令行：
+tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/ --tag Curriculum/terrain_levels
+```
 
 ## 部署
 
@@ -146,7 +161,7 @@ cmake .. && make
 
 ### Sim2Sim
 
-安装 [unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation)。
+安装 [unitree\_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation)。
 
 - 在 `/simulate/config.yaml` 中设置 `robot` 为 g1
 - 设置 `domain_id` 为 0
@@ -183,5 +198,6 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 
 - [IsaacLab](https://github.com/isaac-sim/IsaacLab)：训练和运行代码的基础框架
 - [mujoco](https://github.com/google-deepmind/mujoco.git)：提供强大的仿真功能
-- [robot_lab](https://github.com/fan-ziqi/robot_lab)：项目结构和部分实现的参考
-- [whole_body_tracking](https://github.com/HybridRobotics/whole_body_tracking)：用于运动跟踪的多功能全身控制框架
+- [robot\_lab](https://github.com/fan-ziqi/robot_lab)：项目结构和部分实现的参考
+- [whole\_body\_tracking](https://github.com/HybridRobotics/whole_body_tracking)：用于运动跟踪的多功能全身控制框架
+

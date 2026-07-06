@@ -73,3 +73,10 @@ datasets
 
 # Mimic
 *.npz
+.reasonix/truncated-results/1782285097358-69b574a0-run_background.txt
+.reasonix/truncated-results/1782286023535-788e9165-run_background.txt
+.reasonix/truncated-results/1782288105897-e6d822d0-run_background.txt
+.reasonix/truncated-results/1782295404602-886ffd13-run_background.txt
+.reasonix/truncated-results/1782295498128-6ccb4d78-run_background.txt
+.reasonix/truncated-results/1782295541089-c05532e1-run_background.txt
+eval_output.txt
