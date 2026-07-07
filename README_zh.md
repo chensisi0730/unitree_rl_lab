@@ -61,32 +61,30 @@
     ```
   - 运行训练一个任务：
     ```bash
-    基础用法（录制视频）
+        基础用法（录制视频）
     python scripts/rsl_rl/train.py --task Unitree-Go2-Flat --video
-
-
     ./unitree_rl_lab.sh -t --task Unitree-Go2-Velocity   --resume  --load_run 2026-06-22_23-16-30 --checkpoint model_6000  --num_envs 10000
     ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
     python scripts/rsl_rl/train.py --headless --task  Unitree-Go2-Velocity  --resume  --num_envs 1000
 
-    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity --num_envs 18000 --resume --load_run 2026-07-03_19-13-44
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity --num_envs 10000 --resume --load_run 2026-07-02_23-38-01
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task \
-    Unitree-Go2-Velocity --num_envs 10000  --video \
-    --resume --load_run 2026-07-02_23-40-22
+    Unitree-Go2-Velocity --num_envs 10000 \
+    --resume --load_run 2026-06-30_23-52-26xx
 
     查看 terrain_level 涨没涨的命令
     查看这轮训练的 terrain_level 涨势
     ./scripts/check_terrain_level.sh
 
     ```
-# 使用训练好的智能体进行推理：
+  - 使用训练好的智能体进行推理：
     ```bash
     ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
     ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity # 支持任务名自动补全
     # 等效于
-    python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57 
+    python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57
 
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28
@@ -184,13 +182,94 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 4. 点击 mujoco 窗口，然后按 9 禁用弹性带
 ```
 
-### Sim2Real
+### Sim2RealREADME_zh.md
 
 你可以使用此程序直接控制机器人，但请确保已关闭机载控制程序。
 
 ```bash
 ./g1_ctrl --network eth0 # eth0 是网络接口名称
 ```
+
+---
+
+## G1 人形机器人 — 复杂地形训练
+
+### 任务说明
+
+| 任务 ID | 地形 | 用途 |
+|---------|------|------|
+| `Unitree-G1-29dof-Velocity` | 平地 | 原始速度跟踪 |
+| `Unitree-G1-29dof-Velocity-Rough` | **复杂混合地形** | 楼梯/坡道/粗糙地面 |
+
+### 地形组成
+
+文件: `source/unitree_rl_lab/unitree_rl_lab/tasks/locomotion/robots/g1/29dof/rough_terrain_env_cfg.py`
+
+| 地形类型 | 比例 | 难度范围 |
+|---------|:---:|:--------:|
+| 平地 | 20% | 最简单 |
+| 随机粗糙地面 | 20% | 0.01~0.10m 起伏 |
+| 金字塔斜坡 | 15% | 0°~22° 坡度 |
+| 倒金字塔斜坡 | 15% | 0°~22° 坡度 |
+| 金字塔楼梯 | 15% | 5~25cm 阶梯高度 |
+| 倒金字塔楼梯 | 15% | 5~25cm 阶梯高度 |
+
+> G1 的楼梯 `step_width=0.4m`（比 GO2 的 0.3m 更宽，适配人形步幅）
+
+### 训练命令
+
+```bash
+# 平地训练
+./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity
+
+# 复杂地形训练（从零开始）
+./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity-Rough --max_iterations 100000
+
+# 从平地 checkpoint 恢复训练（迁移学习，更快收敛）
+./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity-Rough \
+  --resume \
+  --load_run unitree_g1_29dof_velocity \
+  --checkpoint model_XXXX.pt
+```
+
+### 评估命令
+
+```bash
+# 回放评估
+./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity-Rough \
+  --checkpoint /path/to/model_XXXX.pt
+
+# 量化评估
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/eval.py \
+  --task Unitree-G1-29dof-Velocity-Rough \
+  --load_run unitree_g1_29dof_velocity_rough \
+  --checkpoint model_XXXX \
+  --eval-steps 64000
+```
+
+### G1 vs GO2 训练差异
+
+| 特性 | GO2 (四足) | G1 (人形) |
+|------|-----------|----------|
+| 自由度 | 12 (腿) | 29 (腿+臂+腰) |
+| 机身 | base | torso_link |
+| 观察历史 | 无 history | history_length=5 |
+| 奖励项 | ~16 项 | ~21 项（含步态/手臂/腰部/足高） |
+| 速度上限 | ±1.0 m/s | -0.5~+1.0 m/s |
+| 楼梯步宽 | 0.3m | 0.4m |
+| 终止条件 | base_contact | base_height < 0.2m |
+| 地形课程 | 默认可升降 | 只升不降（避免震荡） |
+
+### 课程机制说明
+
+G1 复杂地形使用 `terrain_levels_vel_stairs_only_up` 课程函数：
+
+```
+move_up:   distance > max(3.0m, v_cmd × 6s)    → 升级到更难地形
+move_down: 永不                                   → 只升不降
+```
+
+防止机器人在复杂地形上因频繁摔倒 → 走得太短 → 被降级到更简单地形的恶性循环。
 
 ## 致谢
 
