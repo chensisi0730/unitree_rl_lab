@@ -70,6 +70,8 @@
 
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity --num_envs 10000 --resume --load_run 2026-07-02_23-38-01
 
+    conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py   --task Unitree-G1-29dof-Velocity-Rough    --headless   --max_iterations 100000   --num_envs 14096    --resume    
+
     conda run -n env_isaaclab_sim5 python scripts/rsl_rl/train.py --headless --task \
     Unitree-Go2-Velocity --num_envs 10000 \
     --resume --load_run 2026-06-30_23-52-26xx
@@ -136,59 +138,98 @@ tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/ --tag Curriculum/terrain_
 
 ## 部署
 
-模型训练完成后，需要在 Mujoco 中对训练好的策略进行 Sim2Sim 测试，以验证模型性能。
-然后进行 Sim2Real 部署。
+模型训练完成后，需将策略导出为 ONNX 格式，再部署到 Mujoco Sim2Sim 或实物机器人。
 
-### 设置
+### 1. 导出策略（ONNX）
+
+```bash
+# 训练完成后，使用 play.py 自动导出 ONNX/JIT
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py \
+  --task Unitree-Go2-Velocity \
+  --headless \
+  --checkpoint /path/to/logs/rsl_rl/unitree_go2_velocity/YYYY-MM-DD_HH-MM-SS/model_XXXX.pt
+
+# 导出的文件在 checkpoint 同目录下的 exported/ 文件夹：
+#   policy.onnx  — 用于部署
+#   policy.pt    — 用于 JIT 推理
+```
+
+### 2. 配置部署参数
+
+编辑机器人对应的 `deploy/robots/<robot>/config/config.yaml`，设置 `policy_dir` 指向训练日志目录：
+
+```yaml
+# deploy/robots/go2/config/config.yaml 示例
+Velocity:
+  transitions: 
+    Passive: LT + B.on_pressed
+  policy_dir: ../../../logs/rsl_rl/unitree_go2_velocity/YYYY-MM-DD_HH-MM-SS
+```
+
+### 3. 编译 C++ 控制器
 
 ```bash
 # 安装依赖
 sudo apt install -y libyaml-cpp-dev libboost-all-dev libeigen3-dev libspdlog-dev libfmt-dev
-# 安装 unitree_sdk2
+
+# 安装 unitree_sdk2（仅 Sim2Real 需要，Sim2Sim 可跳过）
 git clone git@github.com:unitreerobotics/unitree_sdk2.git
 cd unitree_sdk2
-mkdir build && cd build    ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
-
-cmake .. -DBUILD_EXAMPLES=OFF # 安装到 /usr/local 目录
-sudo make install
-# 编译 robot_controller
-cd unitree_rl_lab/deploy/robots/g1_29dof # 或其他机器人
 mkdir build && cd build
-cmake .. && make
+cmake .. -DBUILD_EXAMPLES=OFF
+sudo make install
+
+# 编译 robot_controller
+cd unitree_rl_lab/deploy/robots/g1_29dof  # 替换为目标机器人
+mkdir -p build && cd build
+cmake ..
+make
 ```
 
-### Sim2Sim
+编译产物为 `g1_ctrl`（或对应机器人名称的二进制文件），包含 ONNX 运行时推理。
 
-安装 [unitree\_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation)。
+### 4. Sim2Sim（Mujoco 仿真测试）
 
-- 在 `/simulate/config.yaml` 中设置 `robot` 为 g1
-- 设置 `domain_id` 为 0
-- 设置 `enable_elastic_hand` 为 1
-- 设置 `use_joystck` 为 1
+安装 [unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation)。
+
+配置 `/simulate/config.yaml`：
+
+```yaml
+robot: g1              # 目标机器人
+domain_id: 0
+enable_elastic_hand: 1  # G1 弹性手
+use_joystick: 1         # 手柄控制
+```
 
 ```bash
-# 启动仿真
+# 终端 1：启动 Mujoco 仿真
 cd unitree_mujoco/simulate/build
 ./unitree_mujoco
-# ./unitree_mujoco -i 0 -n eth0 -r g1 -s scene_29dof.xml # 备选方式
-```
 
-```bash
+# 终端 2：启动机器人控制器
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
 ./g1_ctrl
-# 1. 按 [L2 + Up] 让机器人站起
-# 2. 点击 mujoco 窗口，然后按 8 让机器人脚接触地面
-# 3. 按 [R1 + X] 运行策略
-# 4. 点击 mujoco 窗口，然后按 9 禁用弹性带
 ```
 
-### Sim2RealREADME_zh.md
+操作流程：
 
-你可以使用此程序直接控制机器人，但请确保已关闭机载控制程序。
+| 步骤 | 按键 | 说明 |
+|------|------|------|
+| 1 | L2 + Up | 机器人站立 |
+| 2 | 点击 Mujoco 窗口 + 按 8 | 脚接触地面 |
+| 3 | R1 + X | 运行策略 |
+| 4 | 点击 Mujoco 窗口 + 按 9 | 禁用弹性带 |
+| 5 | 左摇杆 | 控制前后/左右移动 |
+| 6 | 右摇杆 | 控制转向 |
+
+### 5. Sim2Real（实物部署）
 
 ```bash
-./g1_ctrl --network eth0 # eth0 是网络接口名称
+# 确保实物机器人的机载控制程序已关闭
+./g1_ctrl --network eth0  # eth0 为网络接口名称
 ```
+
+操作流程与 Sim2Sim 相同，控制器会通过 unitree_sdk2 直接驱动实物机器人。
 
 ---
 
