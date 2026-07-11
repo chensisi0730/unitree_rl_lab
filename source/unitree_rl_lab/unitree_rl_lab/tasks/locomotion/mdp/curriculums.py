@@ -95,7 +95,7 @@ def terrain_levels_vel_stairs_only_up(
     env: ManagerBasedRLEnv,
     env_ids: Sequence[int],
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    move_up_min_dist: float = 2.0,
+    efficiency_coeff: float = 0.8,
 ) -> torch.Tensor:
     """地形课程：难度只升不降，适合楼梯训练。
 
@@ -104,7 +104,7 @@ def terrain_levels_vel_stairs_only_up(
       - move_up 固定 4m 阈值，但初始速度 0.1m/s → 20s 只走 2m → 永远升不了级
 
     本版：
-      - move_up = max(move_up_min_dist, v_cmd × 20s × 0.3)，自适应阈值
+      - move_up = v_cmd × episode_duration × efficiency_coeff，自适应阈值
       - move_down = 0（永不降级）
       - terrain_level 单调上升，逐步推进到 15cm 台阶
       - 支持持久化：每次课程更新后自动保存，恢复训练时自动加载
@@ -128,11 +128,8 @@ def terrain_levels_vel_stairs_only_up(
     # 指令速度大小
     cmd_speed = torch.norm(command[env_ids, :2], dim=1)
 
-    # move_up 阈值
-    move_up_threshold = torch.maximum(
-        torch.full_like(cmd_speed, move_up_min_dist),
-        cmd_speed * env.max_episode_length_s * 0.3,
-    )
+    # move_up 阈值：自适应阈值 = 指令速度 × episode时长 × 效率系数
+    move_up_threshold = cmd_speed * env.max_episode_length_s * efficiency_coeff
     move_up = distance > move_up_threshold
 
     # 永不降级

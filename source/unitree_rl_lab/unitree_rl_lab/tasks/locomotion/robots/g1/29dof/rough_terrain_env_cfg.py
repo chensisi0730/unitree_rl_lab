@@ -381,10 +381,9 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    # 地形课程：难度只升不降，防止 terrain_level 震荡下跌
     # 地形课程：难度只升不降
-    # move_up_min_dist: 初始速度 0.1m/s × 20s = 2.0m 最大位移，设为 1.0m 确保能升级
-    terrain_levels = CurrTerm(func=terrain_levels_vel_stairs_only_up, params={"move_up_min_dist": 1.0})
+    # efficiency_coeff: 期望移动效率系数（0~1），系数越高升级越难
+    terrain_levels = CurrTerm(func=terrain_levels_vel_stairs_only_up, params={"efficiency_coeff": 0.8})
     lin_vel_cmd_levels = CurrTerm(mdp.lin_vel_cmd_levels)
 
 
