@@ -1,3 +1,22 @@
+# 原始代码有课程学习吗
+有。原始代码就有课程学习，只是由 Isaac Lab 内置包提供。
+
+ mdp 的 import 链: 
+   unitree_rl_lab/mdp/__init__.py 
+     ├── from isaaclab_tasks.manager_based.locomotion.velocity.mdp import *  ← terrain_levels_vel 从这里来 
+     └── from .curriculums import *                                         ← 本地只有 lin_vel/ang_vel_cmd_levels 
+
+原始配置文件:
+
+ python
+ terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)   # 直接用 Isaac Lab 内置的 
+
+这个内置  terrain_levels_vel  就是固定的  move_up = distance > 4.0m ，加上可降级。
+
+现在我们的改动只是在本地定义同名  terrain_levels_vel  覆盖它，只改了  move_up  阈值一个地方。其余课程学习逻辑全部保留： __post_init__  中的  terrain_generator.curriculum = True 、 
+CurriculumCfg  的启用、 lin_vel_cmd_levels  速度课程——都没动。
+
+
 # 1. terrain_levels 课程逻辑                                                                                                                                                             
                                                                                                                                                                                         
 每个 episode 结束后，检查机器人从出生点走了多远：                                                                                                                                       

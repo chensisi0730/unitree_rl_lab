@@ -104,11 +104,12 @@
 python scripts/rsl_rl/play.py --task Unitree-Go2-Velocity  --load_run logs/rsl_rl/unitree_go2_velocity/2026-06-23_16-34-57 
 
 
-conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py --headless --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28
+conda run -n env_isaaclab_sim5 python scripts/rsl_rl/play.py  --task Unitree-Go2-Velocity --load_run 2026-06-25_10-08-28
 
-python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
+python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity --load_run 2026-06-25_10-08-28
 
 ```
+
 ### 评估训练效果
 
 使用独立的 `eval.py` 脚本量化评估 checkpoint 性能，运行固定步数后输出指标并退出：
@@ -130,6 +131,7 @@ conda run -n env_isaaclab_sim5 python scripts/rsl_rl/eval.py \
 # 查看评估结果
 cat logs/rsl_rl/unitree_go2_velocity/2026-06-30_23-52-26/eval_result.json
 ```
+
 **输出指标说明**：
 
 
@@ -149,8 +151,8 @@ tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/
 # 或在命令行：
 tensorboard --logdir logs/rsl_rl/unitree_go2_velocity/ --tag Curriculum/terrain_levels
 ```
-## 部署
 
+## 部署
 模型训练完成后，需要在 Mujoco 中对训练好的策略进行 Sim2Sim 测试，以验证模型性能。
 然后进行 Sim2Real 部署。
 
@@ -163,14 +165,18 @@ sudo apt install -y libyaml-cpp-dev libboost-all-dev libeigen3-dev libspdlog-dev
 git clone git@github.com:unitreerobotics/unitree_sdk2.git
 cd unitree_sdk2
 mkdir build && cd build    ./unitree_rl_lab.sh -p --task Unitree-Go2-Velocity
+mkdir build && cd build    ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity
+
 
 cmake .. -DBUILD_EXAMPLES=OFF # 安装到 /usr/local 目录
 sudo make install
+
 # 编译 robot_controller
 cd unitree_rl_lab/deploy/robots/g1_29dof # 或其他机器人
 mkdir build && cd build
 cmake .. && make
 ```
+
 ### Sim2Sim
 
 安装 [unitree\_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation)。
@@ -186,6 +192,7 @@ cd unitree_mujoco/simulate/build
 ./unitree_mujoco
 # ./unitree_mujoco -i 0 -n eth0 -r g1 -s scene_29dof.xml # 备选方式
 ```
+
 ```bash
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
 ./g1_ctrl
@@ -194,13 +201,19 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 3. 按 [R1 + X] 运行策略
 # 4. 点击 mujoco 窗口，然后按 9 禁用弹性带
 ```
+
 ### Sim2Real
 
 你可以使用此程序直接控制机器人，但请确保已关闭机载控制程序。
-
+robot : 192.168.123.161
+注意进调试模式前需要将机器人挂到吊架上
+方法一：按遥控器的R2+L2
+方法二：在 APP-设备-服务状态 那里关闭ai_sport服务
+方法三：使用 运控切换接口：https://support.unitree.com/home/zh/G1_developer/motion_witcher_service_interface
 ```bash
-./g1_ctrl --network eth0 # eth0 是网络接口名称
+./g1_ctrl --network eno1  # eth0 是网络接口名称
 ```
+
 ## 致谢
 
 本项目的开发离不开以下开源项目的支持和贡献。特别感谢：
